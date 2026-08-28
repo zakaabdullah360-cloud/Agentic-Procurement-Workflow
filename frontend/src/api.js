@@ -1,6 +1,10 @@
 import axios from 'axios'
 
-const client = axios.create({ baseURL: '/api' })
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+const client = axios.create({
+  baseURL: `${API_URL}/api`,
+})
 
 export const createWorkflow = (request_text) =>
   client.post('/workflows', { request_text }).then((r) => r.data)
@@ -26,4 +30,5 @@ export const approve = (approvalId, approver, comment) =>
 export const reject = (approvalId, approver, comment) =>
   client.post(`/approvals/${approvalId}/reject`, { approver, comment }).then((r) => r.data)
 
-export const poDownloadUrl = (poId) => `/api/purchase-orders/${poId}/download`
+export const poDownloadUrl = (poId) =>
+  `${API_URL}/api/purchase-orders/${poId}/download`
