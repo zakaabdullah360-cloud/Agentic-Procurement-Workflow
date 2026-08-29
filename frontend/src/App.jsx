@@ -18,23 +18,52 @@ const Icon = ({ name, size = 18 }) => {
     arrow: <><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></>,
     menu: <><path d="M4 6h16M4 12h16M4 18h16"/></>,
     chevron: <path d="m6 9 6 6 6-6"/>,
+    lock: <><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></>,
   }
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
 }
+
+const EmptyTab = ({ icon, title, text, onCta }) => (
+  <section className="empty-state empty-state-mini">
+    <div className="empty-visual">
+      <div className="empty-ring ring-a" />
+      <div className="empty-ring ring-b" />
+      <div className="empty-core"><Icon name={icon} size={22} /></div>
+    </div>
+    <h2>{title}</h2>
+    <p>{text}</p>
+    <button className="btn empty-cta" onClick={onCta}>Start a request<Icon name="arrow" size={15} /></button>
+  </section>
+)
+
+const TABS = [
+  { id: 'request', label: 'New request', icon: 'spark' },
+  { id: 'trace', label: 'Execution trace', icon: 'activity' },
+  { id: 'suppliers', label: 'Supplier analysis', icon: 'users' },
+  { id: 'approval', label: 'Approval gate', icon: 'shield' },
+]
 
 export default function App() {
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [activeTab, setActiveTab] = useState('request')
+
+  const goTo = (tabId) => (e) => {
+    e.preventDefault()
+    setActiveTab(tabId)
+  }
 
   const run = async (text) => {
     setLoading(true)
     setError(null)
+    setActiveTab('trace')
     try {
       const result = await createWorkflow(text)
       setDetail(result)
     } catch (e) {
       setError(e?.response?.data?.detail || e.message || 'Something went wrong while running the workflow.')
+      setActiveTab('request')
     } finally {
       setLoading(false)
     }
@@ -75,10 +104,18 @@ export default function App() {
 
         <div className="sidebar-label">WORKSPACE</div>
         <nav className="nav-list">
-          <a className="nav-item active" href="#request"><span className="nav-icon"><Icon name="spark" /></span>New request</a>
-          <a className="nav-item" href="#trace"><span className="nav-icon"><Icon name="activity" /></span>Execution trace</a>
-          <a className="nav-item" href="#suppliers"><span className="nav-icon"><Icon name="users" /></span>Supplier analysis</a>
-          <a className="nav-item" href="#approval"><span className="nav-icon"><Icon name="shield" /></span>Approval gate</a>
+          {TABS.map((tab) => (
+            <a
+              key={tab.id}
+              className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
+              href={`#${tab.id}`}
+              aria-current={activeTab === tab.id ? 'page' : undefined}
+              onClick={goTo(tab.id)}
+            >
+              <span className="nav-icon"><Icon name={tab.icon} /></span>{tab.label}
+              {tab.id !== 'request' && !detail && <span className="nav-lock"><Icon name="lock" size={12} /></span>}
+            </a>
+          ))}
         </nav>
 
         <div className="sidebar-spacer" />
@@ -99,112 +136,155 @@ export default function App() {
       <main className="main-content">
         <header className="topbar">
           <div className="mobile-brand"><div className="brand-mark"><Icon name="spark" size={18} /></div><strong>ProcureAI</strong></div>
-          <div className="breadcrumb">Workspace <span>/</span> Procurement agent</div>
+          <div className="breadcrumb">Workspace <span>/</span> {TABS.find((t) => t.id === activeTab)?.label}</div>
           <div className="topbar-right">
             <span className="live-status"><i /> API connected</span>
             <span className="version">HackHorizon PS-2</span>
           </div>
         </header>
 
-        <section className="hero" id="request">
-          <div className="hero-copy">
-            <div className="eyebrow"><span className="eyebrow-dot"><Icon name="spark" size={12} /></span> AI PROCUREMENT CONTROL CENTER</div>
-            <h1>Turn business intent into<br /><em>controlled action.</em></h1>
-            <p>Describe what you need in plain English. ProcureAI plans the workflow, compares suppliers, validates the result and prepares the purchase order — without bypassing human approval.</p>
-          </div>
-          <div className="hero-orbit" aria-hidden="true">
-            <div className="orbit orbit-1"><span><Icon name="spark" size={16} /></span></div>
-            <div className="orbit orbit-2"><span><Icon name="shield" size={14} /></span></div>
-            <div className="orbit-core"><Icon name="activity" size={26} /></div>
-          </div>
-        </section>
-
-        <section className="request-card">
-          <div className="request-head">
-            <div>
-              <span className="section-kicker">01 · REQUEST</span>
-              <h2>What would you like to procure?</h2>
-            </div>
-            <span className="secure-badge"><Icon name="shield" size={14} /> Controlled execution</span>
-          </div>
-          <ChatInput onSubmit={run} loading={loading} />
-        </section>
-
         {error && (
-          <div className="alert error-alert">
+          <div className="alert error-alert reveal-fast">
             <div className="alert-icon">!</div>
             <div><strong>Workflow could not be completed</strong><span>{error}</span></div>
           </div>
         )}
 
-        {detail && (
-          <>
-            <section className="metric-grid">
-              <div className="metric-card">
-                <div className="metric-icon purple"><Icon name="activity" /></div>
-                <div><span>Workflow status</span><strong className="metric-status">{status?.replace(/_/g, ' ')}</strong></div>
-                <div className={`tiny-status ${status}`}><span /></div>
-              </div>
-              <div className="metric-card">
-                <div className="metric-icon blue"><Icon name="users" /></div>
-                <div><span>Suppliers compared</span><strong>{metrics.suppliers || '—'}</strong></div>
-                <small>{metrics.within} within budget</small>
-              </div>
-              <div className="metric-card">
-                <div className="metric-icon green"><Icon name="check" /></div>
-                <div><span>Recommended supplier</span><strong>{metrics.best?.supplier?.name || 'Pending'}</strong></div>
-                <small>{metrics.best?.score != null ? `Score ${metrics.best.score.toFixed(2)}` : 'Awaiting analysis'}</small>
-              </div>
-              <div className="metric-card">
-                <div className="metric-icon amber"><Icon name="file" /></div>
-                <div><span>Purchase order</span><strong>{metrics.total ? `${metrics.total.toLocaleString()} ${metrics.currency}` : 'Not created'}</strong></div>
-                <small>{detail.purchase_order ? 'Validated draft' : 'Pending generation'}</small>
-              </div>
-            </section>
+        <div className="tab-page" key={activeTab}>
+          {activeTab === 'request' && (
+            <>
+              <section className="hero">
+                <div className="hero-copy">
+                  <div className="eyebrow"><span className="eyebrow-dot"><Icon name="spark" size={12} /></span> AI PROCUREMENT CONTROL CENTER</div>
+                  <h1>Turn business intent into<br /><em>controlled action.</em></h1>
+                  <p>Describe what you need in plain English. ProcureAI plans the workflow, compares suppliers, validates the result and prepares the purchase order — without bypassing human approval.</p>
+                </div>
+                <div className="hero-orbit" aria-hidden="true">
+                  <div className="orbit orbit-1"><span><Icon name="spark" size={16} /></span></div>
+                  <div className="orbit orbit-2"><span><Icon name="shield" size={14} /></span></div>
+                  <div className="orbit-core"><Icon name="activity" size={26} /></div>
+                </div>
+              </section>
 
-            {detail.extracted_params && (
-              <details className="params-panel">
-                <summary><span><span className="section-kicker">REQUEST DATA</span><strong>Extracted parameters</strong></span><Icon name="chevron" size={17} /></summary>
-                <pre className="raw">{JSON.stringify(detail.extracted_params, null, 2)}</pre>
-              </details>
-            )}
+              <section className="request-card">
+                <div className="request-head">
+                  <div>
+                    <span className="section-kicker">01 · REQUEST</span>
+                    <h2>What would you like to procure?</h2>
+                  </div>
+                  <span className="secure-badge"><Icon name="shield" size={14} /> Controlled execution</span>
+                </div>
+                <ChatInput onSubmit={run} loading={loading} />
+              </section>
 
-            <div id="trace"><WorkflowTrace workflow={detail.workflow} steps={detail.steps} /></div>
-            <div id="suppliers"><SupplierComparison quotes={detail.quotes} /></div>
-            <POPreview po={detail.purchase_order} report={detail.final_report} />
-            <div id="approval"><ApprovalQueue approval={detail.approval} onDecided={refresh} /></div>
+              {detail && (
+                <section className="metric-grid">
+                  <div className="metric-card">
+                    <div className="metric-icon purple"><Icon name="activity" /></div>
+                    <div><span>Workflow status</span><strong className="metric-status">{status?.replace(/_/g, ' ')}</strong></div>
+                    <div className={`tiny-status ${status}`}><span /></div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-icon blue"><Icon name="users" /></div>
+                    <div><span>Suppliers compared</span><strong>{metrics.suppliers || '—'}</strong></div>
+                    <small>{metrics.within} within budget</small>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-icon green"><Icon name="check" /></div>
+                    <div><span>Recommended supplier</span><strong>{metrics.best?.supplier?.name || 'Pending'}</strong></div>
+                    <small>{metrics.best?.score != null ? `Score ${metrics.best.score.toFixed(2)}` : 'Awaiting analysis'}</small>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-icon amber"><Icon name="file" /></div>
+                    <div><span>Purchase order</span><strong>{metrics.total ? `${metrics.total.toLocaleString()} ${metrics.currency}` : 'Not created'}</strong></div>
+                    <small>{detail.purchase_order ? 'Validated draft' : 'Pending generation'}</small>
+                  </div>
+                </section>
+              )}
 
-            {detail.final_report && isComplete && (
-              <details className="report-panel">
-                <summary><span><span className="section-kicker">AUDIT OUTPUT</span><strong>Completion report</strong></span><Icon name="chevron" size={17} /></summary>
-                <pre className="raw">{JSON.stringify(detail.final_report, null, 2)}</pre>
-              </details>
-            )}
-          </>
-        )}
+              {!detail && !loading && (
+                <section className="empty-state">
+                  <div className="empty-visual">
+                    <div className="empty-ring ring-a" />
+                    <div className="empty-ring ring-b" />
+                    <div className="empty-core"><Icon name="spark" size={24} /></div>
+                  </div>
+                  <span className="section-kicker">READY WHEN YOU ARE</span>
+                  <h2>One request. One controlled workflow.</h2>
+                  <p>Start with a sample above or describe your own procurement or vendor-renewal request.</p>
+                  <div className="flow-pills">
+                    <span>Parse intent</span><b>→</b><span>Plan</span><b>→</b><span>Compare</span><b>→</b><span>Validate</span><b>→</b><span>Approve</span>
+                  </div>
+                </section>
+              )}
+            </>
+          )}
 
-        {!detail && !loading && (
-          <section className="empty-state">
-            <div className="empty-visual">
-              <div className="empty-ring ring-a" />
-              <div className="empty-ring ring-b" />
-              <div className="empty-core"><Icon name="spark" size={24} /></div>
-            </div>
-            <span className="section-kicker">READY WHEN YOU ARE</span>
-            <h2>One request. One controlled workflow.</h2>
-            <p>Start with a sample above or describe your own procurement or vendor-renewal request.</p>
-            <div className="flow-pills">
-              <span>Parse intent</span><b>→</b><span>Plan</span><b>→</b><span>Compare</span><b>→</b><span>Validate</span><b>→</b><span>Approve</span>
-            </div>
-          </section>
-        )}
+          {activeTab === 'trace' && (
+            loading ? (
+              <section className="loading-card">
+                <div className="loader-orb"><span /><span /><span /></div>
+                <div>
+                  <strong>Agent is orchestrating your request</strong>
+                  <p>Parsing intent · planning actions · checking suppliers · validating outputs</p>
+                  <div className="progress-track"><span /></div>
+                </div>
+              </section>
+            ) : detail ? (
+              <>
+                {detail.extracted_params && (
+                  <details className="params-panel" open>
+                    <summary><span><span className="section-kicker">REQUEST DATA</span><strong>Extracted parameters</strong></span><Icon name="chevron" size={17} /></summary>
+                    <pre className="raw">{JSON.stringify(detail.extracted_params, null, 2)}</pre>
+                  </details>
+                )}
+                <WorkflowTrace workflow={detail.workflow} steps={detail.steps} />
+              </>
+            ) : (
+              <EmptyTab
+                icon="activity"
+                title="No workflow running yet"
+                text="Submit a request from the New request tab to see the live execution trace here."
+                onCta={goTo('request')}
+              />
+            )
+          )}
 
-        {loading && (
-          <section className="loading-card">
-            <div className="loader-orb"><span /><span /><span /></div>
-            <div><strong>Agent is orchestrating your request</strong><p>Parsing intent · planning actions · checking suppliers · validating outputs</p></div>
-          </section>
-        )}
+          {activeTab === 'suppliers' && (
+            detail ? (
+              <SupplierComparison quotes={detail.quotes} />
+            ) : (
+              <EmptyTab
+                icon="users"
+                title="No suppliers compared yet"
+                text="Once a request runs, supplier quotes and scores will appear here."
+                onCta={goTo('request')}
+              />
+            )
+          )}
+
+          {activeTab === 'approval' && (
+            detail ? (
+              <>
+                <POPreview po={detail.purchase_order} report={detail.final_report} />
+                <ApprovalQueue approval={detail.approval} onDecided={refresh} />
+                {detail.final_report && isComplete && (
+                  <details className="report-panel">
+                    <summary><span><span className="section-kicker">AUDIT OUTPUT</span><strong>Completion report</strong></span><Icon name="chevron" size={17} /></summary>
+                    <pre className="raw">{JSON.stringify(detail.final_report, null, 2)}</pre>
+                  </details>
+                )}
+              </>
+            ) : (
+              <EmptyTab
+                icon="shield"
+                title="Nothing awaiting approval"
+                text="The purchase order and approval gate will show up here once a request has been validated."
+                onCta={goTo('request')}
+              />
+            )
+          )}
+        </div>
 
         <footer className="footer">
           <span>ProcureAI · Agentic Procurement Workflow</span>
